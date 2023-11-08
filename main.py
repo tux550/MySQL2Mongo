@@ -23,12 +23,12 @@ delete_existing_documents = (CONFIG["Options"]["delete_existing_documents"]==Tru
 # ------------ MySQL connection ------------
 prettyprint("Connecting to MySQL server...", MsgType.HEADER)
 mysqldb = MySQLConnection(CONFIG["MySQL"])
-print(  create_migration_plan(mysqldb.get_tables_metadata())  )
 prettyprint("Connection to MySQL Server succeeded.", MsgType.OKGREEN)
 
 # ------------ MongoDB connection ------------
 prettyprint("Connecting to MongoDB server...", MsgType.HEADER)
 mongodb = MongoConnection(CONFIG["Mongo"])
+print( create_migration_plan(mysqldb.get_tables_metadata()))
 prettyprint("Connection to MongoDB Server succeeded.", MsgType.OKGREEN)
 
 # ------------ Migration Start ------------
@@ -47,6 +47,11 @@ total_count = len(tables)
 success_count = 0
 fail_count = 0
 
+
+mongodb.import_mysql(mysqldb)
+exit()
+database_metadata = mysqldb.get_tables_metadata()
+
 for table in tables:
     try:
         prettyprint(f"Processing table: {table[0]}...", MsgType.OKCYAN)
@@ -58,6 +63,20 @@ for table in tables:
     except Exception as e:
         fail_count += 1
         prettyprint(f"{e}", MsgType.FAIL)
+
+"""
+for table in tables:
+    try:
+        prettyprint(f"Processing table: {table[0]}...", MsgType.OKCYAN)
+        table_name = table[0]
+        table_data = mysqldb.get_table(table_name)
+        inserted_count = mongodb.import_table(table_name,table_data, delete_existing_documents)
+        success_count += 1
+        prettyprint(f"Processing table: {table_name} completed. {inserted_count} documents inserted.", MsgType.OKGREEN)
+    except Exception as e:
+        fail_count += 1
+        prettyprint(f"{e}", MsgType.FAIL)
+"""
 
 prettyprint("Migration completed.", MsgType.HEADER)
 prettyprint(f"{success_count} of {total_count} tables migrated successfully.", MsgType.OKGREEN)
