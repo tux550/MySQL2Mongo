@@ -64,19 +64,6 @@ for table in tables:
         fail_count += 1
         prettyprint(f"{e}", MsgType.FAIL)
 
-"""
-for table in tables:
-    try:
-        prettyprint(f"Processing table: {table[0]}...", MsgType.OKCYAN)
-        table_name = table[0]
-        table_data = mysqldb.get_table(table_name)
-        inserted_count = mongodb.import_table(table_name,table_data, delete_existing_documents)
-        success_count += 1
-        prettyprint(f"Processing table: {table_name} completed. {inserted_count} documents inserted.", MsgType.OKGREEN)
-    except Exception as e:
-        fail_count += 1
-        prettyprint(f"{e}", MsgType.FAIL)
-"""
 
 prettyprint("Migration completed.", MsgType.HEADER)
 prettyprint(f"{success_count} of {total_count} tables migrated successfully.", MsgType.OKGREEN)

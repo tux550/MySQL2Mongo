@@ -42,6 +42,7 @@ class TablePlan():
 
     def __repr__(self) -> str:
         return f"<TablePlan {self.name}>" #- {self.collection} 
+
 def create_migration_plan(tables_metadata, max_depth=1):
     forward_dependencies = get_dependencies(tables_metadata, forward=True)
     o2m_deps = []
@@ -88,22 +89,21 @@ class MongoConnection():
         dblist = self.client.list_database_names()
         return self.config["database"] in dblist
 
-    
-    
     def load_table_plan(self, table_plan, mysql_connector):
-        print("LOADING:", table_plan)
+        print("LOADING TABLE PLAN:", table_plan.name)
+        # Read from mysql
         table_data = mysql_connector.get_table(table_plan.name)
         cleanup_collection(table_data)
-        print(len(table_plan.instructions))
+        # Recursive calls
         for other_table_plan, (local_col, other_col) in table_plan.instructions.items():
-            print(other_table_plan)
             other_table_data = self.load_table_plan(other_table_plan, mysql_connector)
+            # Join by index
             indexed = {row[other_col] : row for row in other_table_data}
             for item in table_data:
                 reference = item[local_col]
-                item[local_col] = indexed[reference]
-                #item[local_col] = indexed[reference]
+                item[local_col] = indexed[reference]                
         return table_data
+    
     def import_mysql(self,
                      mysql_connector,
                      delete_existing_documents=False):
@@ -115,9 +115,12 @@ class MongoConnection():
         mongo_plan = create_migration_plan(database_metadata)
         for table_plan in mongo_plan.values():
             mongo_collection = self.database[table_plan.name]
-            print(table_plan)
-            #table_data = mysql_connector.get_table(table_plan.name)
+            # Delte collection
+            if delete_existing_documents:
+                mongo_collection.delete_many({})
+            # Load table from plan recursievly
             table_data = self.load_table_plan(table_plan, mysql_connector)
+            # Save result
             if len(table_data) > 0:
                 x = mongo_collection.insert_many(table_data)
                 return len(x.inserted_ids)
@@ -125,21 +128,3 @@ class MongoConnection():
                 return 0
 
         print("MYSQL IMPORT END")
-
-    def import_table(self,
-                     table_name,
-                     table_data,
-                     delete_existing_documents=False):
-        # Create mongo collection
-        mongo_collection = self.database[table_name]
-        # Delte collection
-        if delete_existing_documents:
-            mongo_collection.delete_many({})
-        # Cleanup
-        cleanup_collection(table_data)
-        # Insert documents
-        if len(table_data) > 0:
-            x = mongo_collection.insert_many(table_data)
-            return len(x.inserted_ids)
-        else:
-            return 0
