@@ -37,6 +37,18 @@ class MySQLConnection():
             tables_metadata[table] = self.get_table_metadata(table, columns, fks)
         return tables_metadata
     
+    def get_tables_nrows(self) -> dict:
+        table_list_cursor = self.connection.cursor()
+        table_list_cursor.execute(
+            "SELECT table_name,TABLE_ROWS FROM information_schema.tables WHERE table_schema = %s ORDER BY table_name;", (self.schema,)
+        ) #DATA_LENGTH
+        tables = table_list_cursor.fetchall()
+        tables_sizes = {}
+        for table, size in tables:
+            tables_sizes[table] = size
+        return tables_sizes
+
+    
     def get_columns(self) -> list:
         table_list_cursor = self.connection.cursor()
         table_list_cursor.execute(
@@ -52,6 +64,7 @@ class MySQLConnection():
         )
         tables = table_list_cursor.fetchall()
         return tables
+
 
     def get_foreign_keys(self) -> list:
         table_list_cursor = self.connection.cursor()
@@ -71,7 +84,7 @@ class MySQLConnection():
     
     def get_table(self, table_name) -> list:
         cursor = self.connection.cursor(dictionary=True)
-        print(table_name)
+        #print(table_name)
         cursor.execute("SELECT * FROM " + table_name + ";")
         result = cursor.fetchall() 
         return result

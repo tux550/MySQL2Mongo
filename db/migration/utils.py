@@ -29,9 +29,9 @@ def extract_m2m_relationships(
                 outgoing.append(r)
         if len(outgoing) == 0 and len(incoming) >= 2:
             delete_o2m.extend(incoming)
-            main   = incoming[0].many
+            mains   = [r.many for r in incoming]
             tables = [r.one for r in incoming]
-            m2m_deps.append(RelationManyToMany(main=main, tables=tables))
+            m2m_deps.append(RelationManyToMany(mains=mains, tables=tables))
     for r in delete_o2m:
         o2m_deps.remove(r)
     return m2m_deps

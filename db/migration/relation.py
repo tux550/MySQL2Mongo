@@ -1,3 +1,6 @@
+from config import CONFIG
+ask_m2m_select = CONFIG["Options"]["ask_m2m_select"] == "True"
+
 class TableAndCol():
     def __init__(self, table : str, col : str) -> None:
         self.table = table
@@ -15,13 +18,23 @@ class RelationOneToMany():
         return f"<O2M: {str(self.one)} --> {str(self.many)} >"
 
 class RelationManyToMany():   
-    def __init__(self, main : TableAndCol, tables : list[TableAndCol]) -> None:
-        self.main    = main
+    def __init__(self, mains : list[TableAndCol], tables : list[TableAndCol]) -> None:
+        self.mains   = mains
         self.tables  = tables
         self.selected_table_index = self.determine_selected()
         
     def determine_selected(self):
-        return 0
+        print("HERE")
+        if ask_m2m_select:
+            print(f"SELECT TABLE FOR M2M RELATIONSHIP: {self.mains[0].table}")
+            for idx, table in enumerate(self.tables):
+                print(f"{idx}: {table.table}.{table.col} -> {self.mains[idx].table}")         
+            return int(input())
+        else:
+            return 0
+
+    def get_main_table(self):
+        return self.mains[self.selected_table_index]
     
     def get_selected_table(self):
         return self.tables[self.selected_table_index]
@@ -30,7 +43,7 @@ class RelationManyToMany():
         return [self.tables[i] for i in range(len(self.tables)) if i != self.selected_table_index]
         
     def __repr__(self) -> str:
-        return f"<M2M: {str(self.main)} FOR {str(self.tables)} >"
+        return f"<M2M: {str(self.get_main_table())} FOR {str(self.tables)} >"
 
 """
 class RelationOneToMany():   
