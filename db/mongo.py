@@ -2,59 +2,16 @@ import pymongo
 import datetime
 from msilib.text import tables
 from .migration.relation import TableAndCol, RelationOneToMany, RelationManyToMany
+from .migration.plan import TablePlan
+from .migration.utils import get_relationships
 
-def get_o2m_relationships(tables_metadata : dict) -> list[RelationOneToMany]:
-    o2m_relationships = []
-    for table_name, metadata in tables_metadata.items():
-        for col, val in metadata.items():
-            if val:
-                (ref_table, ref_col) = val
-                origin  = TableAndCol(table_name, col)
-                destiny = TableAndCol(ref_table, ref_col)
-                o2m_relationships.append(RelationOneToMany(destiny, origin))
-    return o2m_relationships
 
-class TablePlan():
-    def __init__(self, name, collection=True, instructions=None) -> None:
-        self.name       = name
-        self.collection = collection
-        if instructions is None:
-            self.instructions = dict()
-        else:
-            self.instructions = instructions
 
-    def add_instruction(self, other_table, local_key, other_key, mode):
-        self.instructions[other_table] = (local_key, other_key, mode)
-
-    def __repr__(self) -> str:
-        return f"<TablePlan {self.name}>" #- {self.collection} 
 
 def create_migration_plan(tables_metadata, max_depth=1):
     # Get table dependencies
-    print(tables_metadata)
-    # Identify 1:M relationships
-    print("O2M DEPS")
-    o2m_deps = get_o2m_relationships(tables_metadata)
-    print(o2m_deps)
-    # Identify M:M relationships
-    print("M2M DEPS")
-    m2m_deps   : list[RelationManyToMany] = []
-    delete_o2m : list[RelationOneToMany] = []
-    for table in tables_metadata:
-        incoming : list[RelationOneToMany] = []
-        outgoing : list[RelationOneToMany] = []
-        for r in o2m_deps:
-            if r.many.table == table:
-                incoming.append(r)
-            if r.one.table == table:
-                outgoing.append(r)
-        if len(outgoing) == 0 and len(incoming) >= 2:
-            delete_o2m.extend(incoming)
-            main   = incoming[0].many
-            tables = [r.one for r in incoming]
-            m2m_deps.append(RelationManyToMany(main=main, tables=tables))
-    for r in delete_o2m:
-        o2m_deps.remove(r)
+    #print(tables_metadata)
+    o2m_deps, m2m_deps = get_relationships(tables_metadata)
     print("O2M deps", o2m_deps)
     print("M2M deps", m2m_deps)
                 
@@ -65,6 +22,7 @@ def create_migration_plan(tables_metadata, max_depth=1):
             migration_plan[table].collection = False
         for o2m in o2m_deps:
             if o2m.many.table == table:
+                print("ADDED O2m", table, o2m.one.table)
                 migration_plan[table].add_instruction(other_table=migration_plan[o2m.one.table], local_key=o2m.many.col, other_key=o2m.one.col, mode="single") 
 
     tmp = []
@@ -155,7 +113,7 @@ class MongoConnection():
             if delete_existing_documents:
                 mongo_collection.delete_many({})
             # Load table from plan recursievly
-            print("1",mongo_plan)
+            print("MONGO PLAN",mongo_plan)
             table_data = self.load_table_plan(table_plan, mysql_connector)
             # Save result
             if len(table_data) > 0:
