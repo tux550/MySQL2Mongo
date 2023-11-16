@@ -108,7 +108,11 @@ class MongoConnection():
                     #indexed[row[other_col]].append(row)
                 for item in table_data:
                     reference = item[local_col]
-                    item[other_table_plan.name] = indexed[reference]
+                    if reference in indexed:
+                        item[other_table_plan.name] = indexed[reference]
+                    else:
+                        item[other_table_plan.name] = []
+                        #print(f"ERROR: {reference} not in {other_table_plan.name}")
                 #    del item[local_col]
         return table_data
     
