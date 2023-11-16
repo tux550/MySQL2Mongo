@@ -65,6 +65,17 @@ class MySQLConnection():
         tables = table_list_cursor.fetchall()
         return tables
 
+    def get_primary_keys(self) -> dict:
+        table_list_cursor = self.connection.cursor()
+        table_list_cursor.execute(
+            "SELECT CONSTRAINT_NAME, TABLE_NAME, COLUMN_NAME  FROM information_schema.KEY_COLUMN_USAGE  WHERE CONSTRAINT_SCHEMA = %s ORDER BY table_name;", (self.schema,)
+        )
+        tables = table_list_cursor.fetchall()
+        tables_primary = {}
+        for constraint_name, table, column in tables:
+            if constraint_name == "PRIMARY":
+                tables_primary[table] = column
+        return tables_primary
 
     def get_foreign_keys(self) -> list:
         table_list_cursor = self.connection.cursor()

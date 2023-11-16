@@ -83,6 +83,8 @@ class MongoConnection():
         # Read from mysql
         table_data = mysql_connector.get_table(table_plan.name)
         cleanup_collection(table_data)
+        #print(table_data)
+        
         # Recursive calls
         for other_table_plan, (local_col, other_col, mode) in table_plan.instructions.items():
             other_table_data = self.load_table_plan(other_table_plan, mysql_connector)
@@ -96,32 +98,40 @@ class MongoConnection():
             else:
                 indexed = {}
                 for row in other_table_data:
-                    if row[other_col] not in indexed:
-                        indexed[row[other_col]] =[]
-                    indexed[row[other_col]].append(row)
+                    ref = row[other_col]
+                    del row[other_col]
+                    if ref not in indexed:
+                        indexed[ref] = [row,]
+                    indexed[ref].append(row)
+                    #if row[other_col] not in indexed:
+                    #    indexed[row[other_col]] = [row,]
+                    #indexed[row[other_col]].append(row)
                 for item in table_data:
                     reference = item[local_col]
                     item[other_table_plan.name] = indexed[reference]
-                    del item[local_col]
+                #    del item[local_col]
         return table_data
     
     def import_mysql(self,
                      mysql_connector : MySQLConnection,
-                     delete_existing_documents=False,
+                     delete_existing_documents=True,
                      max_rows=None):
         
         print("MYSQL IMPORT START")
         #Iterate through the list of tables in the schema
         database_metadata = mysql_connector.get_tables_metadata()
         database_nrows = mysql_connector.get_tables_nrows()
-        print("DATABASE METADATA", database_metadata)
+        database_primary = mysql_connector.get_primary_keys()
+        print("DATABASE PRIMARYS", database_primary)
         print("DATABASE NROWS", database_nrows)
         mongo_plan = create_migration_plan(database_metadata,database_nrows)
+        
         for table_plan in mongo_plan.values():
             mongo_collection = self.database[table_plan.name]
             # Delte collection
             if delete_existing_documents:
-                mongo_collection.delete_many({})
+                mongo_collection.drop()
+                #mongo_collection.delete_many({})
             # Load table from plan recursievly
             #print("MONGO PLAN",mongo_plan)
             table_data = self.load_table_plan(table_plan, mysql_connector)
@@ -129,6 +139,8 @@ class MongoConnection():
             if len(table_data) > 0:
                 x = mongo_collection.insert_many(table_data)
                 #return len(x.inserted_ids)
+            if table_plan.name in database_primary:
+                mongo_collection.create_index(database_primary[table_plan.name], unique=True)
             #else:
             #    return 0
         print("MYSQL IMPORT END")
